@@ -18,6 +18,10 @@ const App = () => {
 
   const [initialized, setInitialized] = useState(false); // ◀◀ 追加
   const localStorageKey = "TodoApp"; // ◀◀ 追加
+  const [newTodoRepeat, setNewTodoRepeat] = useState<"daily" | "weekly" | "monthly" | null>(null);
+
+
+
 
   // App コンポーネントの初回レンダリング時にLocalStorageからTodoデータを復元
   useEffect(() => {
@@ -35,6 +39,24 @@ const App = () => {
     }
     setInitialized(true);
   }, []);
+
+  useEffect(() => {
+    const now = new Date();
+    const updatedTodos = todos.map((todo) => {
+      if (todo.repeat && todo.deadline && todo.deadline < now && !todo.completed) {
+        const newDeadline = new Date(todo.deadline);
+  
+        // 繰り返し設定に応じて次の期限を計算
+        if (todo.repeat === "daily") newDeadline.setDate(newDeadline.getDate() + 1);
+        if (todo.repeat === "weekly") newDeadline.setDate(newDeadline.getDate() + 7);
+        if (todo.repeat === "monthly") newDeadline.setMonth(newDeadline.getMonth() + 1);
+  
+        return { ...todo, deadline: newDeadline };
+      }
+      return todo;
+    });
+    setTodos(updatedTodos);
+  }, [todos]); // タスクが変更されるたびに実行
 
   // 状態 todos または initialized に変更があったときTodoデータを保存
   useEffect(() => {
@@ -93,6 +115,7 @@ const App = () => {
       isDone: false,
       priority: newTodoPriority,
       deadline: newTodoDeadline,
+      completed: false,
     };
     const updatedTodos = [...todos, newTodo];
     setTodos(updatedTodos);
@@ -109,6 +132,26 @@ const App = () => {
   const removeCompletedTodos = () => {
     const updatedTodos = todos.filter((todo) => !todo.isDone);
     setTodos(updatedTodos);
+  };
+
+  const addTodo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTodoName.trim()) return;
+  
+    const newTodo: Todo = {
+      id: uuid(),
+      name: newTodoName,
+      priority: newTodoPriority,
+      deadline: newTodoDeadline,
+      completed: false,
+      repeat: newTodoRepeat, // 繰り返し設定を追加
+    };
+  
+    setTodos([...todos, newTodo]);
+    setNewTodoName("");
+    setNewTodoPriority(3);
+    setNewTodoDeadline(null);
+    setNewTodoRepeat(null); // 入力リセット
   };
 
   return (
@@ -197,6 +240,19 @@ const App = () => {
             className="rounded-md border border-gray-400 px-2 py-0.5"
           />
         </div>
+        <form onSubmit={addTodo}>
+          <label>繰り返し設定:</label>
+          <select
+            value={newTodoRepeat || ""}
+            onChange={(e) => setNewTodoRepeat(e.target.value as "daily" | "weekly" | "monthly" || null)}
+          >
+          <option value="">なし</option>
+          <option value="daily">毎日</option>
+          <option value="weekly">毎週</option>
+          <option value="monthly">毎月</option>
+          </select>
+          <button type="submit">タスクを追加</button>
+        </form>
 
         <button
           type="button"
@@ -208,6 +264,7 @@ const App = () => {
         >
           追加
         </button>
+        
       </div>
       <div className="mt-5"></div>
     </div>
